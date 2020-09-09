@@ -5,11 +5,14 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\WithFaker;
 use App\Models\User;
+
 
 class AuthTest extends TestCase
 {
     use RefreshDatabase;
+    use WithFaker;
 
     public $prefix = 'auth/';
 
@@ -58,6 +61,28 @@ class AuthTest extends TestCase
             ->assertJsonStructure([
                 'errors' => [
                     'login',
+                ],
+            ]);
+    }
+
+    /**
+     * Testa se é preciso está com e-mail verificado
+     * para ter acesso ao token.
+     */
+    public function testUserNeedVerifyEmail()
+    {
+        $data = [
+            'email' => $this->faker->email,
+            'password' => $this->faker->password,
+        ];
+
+        User::create($data);
+
+        $reponse = $this->postJson($this->uri . $this->prefix . 'login', $data, $this->headers);
+        $reponse->assertStatus(403)
+            ->assertJsonStructure([
+                'errors' => [
+                    'email',
                 ],
             ]);
     }
