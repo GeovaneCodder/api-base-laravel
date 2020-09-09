@@ -5,40 +5,38 @@ namespace App\Http\Controllers\V1;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Http\Requests\LoginRequest;
 
 class AuthController extends Controller
 {
-    public function login()
+    /**
+     * Faz a auteticação e gera um token de acesso
+     * para o usuário.
+     * @param $request App\Http\Requests\LoginRequest
+     * @return json
+     */
+    public function login(LoginRequest $request)
     {
-        $this->request->validate([
-            'email' => 'required|email',
-            'password' => 'required|min:6',
-        ]);
+        $user = User::where('email', $request->email)->first();
 
-        $userAgent = $this
-            ->request
-            ->userAgent();
-
-        $email = $this
-            ->request
-            ->email;
-
-        $password = $this
-            ->request
-            ->password;
-
-        $user = User::where('email', $email)->first();
-
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'errors' => [
-                    'login' => 'Email or password wrog.',
+                    'login' => _('auth.failed'),
                 ],
             ], 401);
         }
 
+        if (null === $user->email_verified_at) {
+            return response()->json([
+                'errors' => [
+                    'email' => _('auth.unverified_email'),
+                ],
+            ], 403);
+        }
+
         $token = $user
-            ->createToken($userAgent)
+            ->createToken($request->userAgent())
             ->plainTextToken;
 
         return response()->json([
@@ -47,6 +45,11 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Revoga o token atual da requisição
+     * @return json ou
+     * @return \Exception
+     */
     public function logout()
     {
         try {
